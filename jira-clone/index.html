@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="az">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SprintFlow — Jira Clone</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
+</head>
+<body>
+  <div id="toast"></div>
+
+  <!-- ============ AUTH ============ -->
+  <section id="auth-view" class="hidden">
+    <div class="auth-card">
+      <h1>🚀 SprintFlow</h1>
+      <p class="muted">Agile Sprint &amp; Issue Tracking</p>
+      <div class="tabs">
+        <button id="tab-login" class="active" type="button">Giriş</button>
+        <button id="tab-register" type="button">Qeydiyyat</button>
+      </div>
+      <form id="auth-form">
+        <input id="auth-email" type="email" placeholder="Email" required>
+        <input id="auth-name" class="register-only hidden" type="text" placeholder="Ad Soyad">
+        <input id="auth-password" type="password" placeholder="Şifrə (min 6 simvol)" required>
+        <button class="primary" type="submit">Davam et</button>
+      </form>
+      <p class="muted small">Demo: sarah@acme.dev / password123</p>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section id="app-view" class="hidden">
+    <header class="topbar">
+      <span class="brand">🚀 SprintFlow</span>
+      <select id="ws-select" title="Workspace"></select>
+      <button id="btn-new-ws" class="ghost" title="Yeni workspace">＋</button>
+      <select id="project-select" title="Layihə"></select>
+      <button id="btn-new-project" class="ghost" title="Yeni layihə">＋</button>
+      <button id="btn-del-project" class="ghost danger" title="Layihəni sil (soft delete)">🗑</button>
+      <button id="btn-invite" class="ghost" title="Üzv dəvət et">👤＋</button>
+      <span class="spacer"></span>
+      <span id="plan-badge" class="badge"></span>
+      <span id="user-name" class="muted"></span>
+      <button id="btn-logout" class="ghost">Çıxış</button>
+    </header>
+
+    <div class="toolbar">
+      <input id="f-search" placeholder="🔍 Axtarış (başlıq / təsvir)...">
+      <select id="f-assignee"><option value="">Məsul: hamısı</option></select>
+      <select id="f-priority">
+        <option value="">Prioritet: hamısı</option>
+        <option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option>
+      </select>
+      <span class="spacer"></span>
+      <button id="btn-new-issue" class="primary">＋ Yeni Tapşırıq</button>
+    </div>
+
+    <main id="board"></main>
+    <p id="board-empty" class="muted center hidden">Bu layihə üçün ticket yoxdur — yuxarıdan əlavə edin.</p>
+  </section>
+
+  <!-- ============ ISSUE MODAL ============ -->
+  <div id="issue-modal" class="overlay hidden">
+    <div class="modal issue-modal">
+      <button class="close" data-close="issue-modal">✕</button>
+      <div class="im-grid">
+        <div class="im-main">
+          <div class="im-key muted" id="im-key"></div>
+          <input id="im-title" class="im-title" placeholder="Başlıq">
+          <h4>Təsvir</h4>
+          <div class="tabs small-tabs">
+            <button id="tab-desc-write" class="active" type="button">Yaz</button>
+            <button id="tab-desc-preview" type="button">Önizlə</button>
+          </div>
+          <textarea id="im-description" rows="7" placeholder="Markdown dəstəklənir..."></textarea>
+          <div id="im-desc-preview" class="md hidden"></div>
+          <button id="btn-save-desc" class="ghost">Təsviri yadda saxla</button>
+
+          <h4>Şərhlər</h4>
+          <div id="im-comments"></div>
+          <textarea id="im-new-comment" rows="2" placeholder="Şərh yaz... (Markdown)"></textarea>
+          <button id="btn-add-comment" class="ghost">Şərh əlavə et</button>
+        </div>
+        <div class="im-side">
+          <label>Status
+            <select id="im-status">
+              <option value="BACKLOG">Backlog</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="IN_REVIEW">In Review</option>
+              <option value="DONE">Done</option>
+            </select>
+          </label>
+          <label>Məsul
+            <select id="im-assignee"></select>
+          </label>
+          <label>Prioritet
+            <select id="im-priority">
+              <option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option>
+            </select>
+          </label>
+          <label>Növ
+            <select id="im-type">
+              <option value="BUG">🐞 Bug</option>
+              <option value="FEATURE">✨ Feature</option>
+              <option value="TASK">📋 Task</option>
+            </select>
+          </label>
+          <label>Story points
+            <input id="im-points" type="number" min="0" max="99">
+          </label>
+          <div class="muted small" id="im-meta"></div>
+          <h4>Activity</h4>
+          <div id="im-activity"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ NEW ISSUE MODAL ============ -->
+  <div id="new-issue-modal" class="overlay hidden">
+    <div class="modal narrow">
+      <button class="close" data-close="new-issue-modal">✕</button>
+      <h3>Yeni Tapşırıq</h3>
+      <label>Başlıq <input id="ni-title" placeholder="Qısa və dəqiq başlıq"></label>
+      <label>Növ
+        <select id="ni-type">
+          <option value="TASK">📋 Task</option>
+          <option value="BUG">🐞 Bug</option>
+          <option value="FEATURE">✨ Feature</option>
+        </select>
+      </label>
+      <label>Prioritet
+        <select id="ni-priority">
+          <option>MEDIUM</option><option>LOW</option><option>HIGH</option><option>CRITICAL</option>
+        </select>
+      </label>
+      <label>Məsul <select id="ni-assignee"></select></label>
+      <label>Story points <input id="ni-points" type="number" min="0" max="99" placeholder="—"></label>
+      <label>Təsvir (Markdown) <textarea id="ni-description" rows="4"></textarea></label>
+      <button id="btn-create-issue" class="primary">Yarat</button>
+    </div>
+  </div>
+
+  <!-- ============ UPGRADE MODAL ============ -->
+  <div id="upgrade-modal" class="overlay hidden">
+    <div class="modal narrow center-text">
+      <h3>⭐ Pro-ya yüksəldin</h3>
+      <p id="upgrade-msg"></p>
+      <ul class="muted small left-text">
+        <li>✅ Limitsiz layihə və ticket</li>
+        <li>✅ Prioritet dəstəyi: CRITICAL</li>
+        <li>✅ Advanced audit trail</li>
+      </ul>
+      <button id="btn-upgrade" class="primary">Pro-ya yüksəlt (demo)</button>
+      <button class="ghost" data-close="upgrade-modal">İmtina</button>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
